@@ -11,7 +11,6 @@
 
 #define BLOCK_Y 16
 #define BLOCK_X 16
-
 //compare arrays
 template<typename T>
 void compare_arrays(T* a, T* b, int size)
@@ -41,14 +40,21 @@ int main(int argc, char** argv)
 	bool print_out = 0;
 	size_t k_rad = 1;
 	size_t k_len = k_rad * 2 + 1;
+	int kernel_id = 0;
 	if (argc > 1)
 		y_len = atoi(argv[1]);
 
 	if (argc > 2)
 		x_len = atoi(argv[2]);
-
+	
 	if (argc > 3)
-		print_out = atoi(argv[3]);
+		k_rad = atoi(argv[3]);
+
+	if (argc > 4)
+		kernel_id = atoi(argv[4]);
+
+	if (argc > 5)
+		print_out = atoi(argv[5]);
 
 	printf("Running input length %d x %d \n", y_len, x_len);
 	const int input_byte_size = sizeof(float) * x_len * y_len;
@@ -115,7 +121,7 @@ int main(int argc, char** argv)
 		// Making program from the source code
 		cl::Program program = cl::Program(context, source);
 
-		std::string build_options = "-DY_BLK_SIZE="+ std::to_string(BLOCK_Y+k_rad*2) + " -DX_BLK_SIZE=" + std::to_string(BLOCK_X+k_rad*2);
+		std::string build_options = "-DY_BLK_SIZE="+ std::to_string(BLOCK_Y+k_rad*2) + " -DX_BLK_SIZE=" + std::to_string(BLOCK_X+k_rad*2) + " -DKERN_SIZE=" + std::to_string((k_rad * 2 + 1)*(k_rad * 2+1));
 		// Building the program for the devices
 		if (program.build(device, build_options.c_str()) != CL_SUCCESS)
 		{
@@ -128,7 +134,11 @@ int main(int argc, char** argv)
 		printf("OCL Program built\n");
 
 		// creating kernels from the program
-		cl::Kernel conv(program, "conv");
+		std::string kernel_name = (kernel_id == 0 )?"conv":
+			(kernel_id == 1) ? "conv_shm":
+			(kernel_id == 2) ? "conv_shm_unrolled":"";
+		std::cout << "Using " << kernel_name << std::endl;
+		cl::Kernel conv(program, kernel_name.c_str());
 
 		cl::Buffer d_input = cl::Buffer(context,  CL_MEM_COPY_HOST_PTR, input_byte_size, h_input._buff.data());
 		cl::Buffer d_kernel = cl::Buffer(context, CL_MEM_COPY_HOST_PTR, kernel_size, h_kernel._buff.data());
